@@ -9,24 +9,31 @@ interface ChatWindowProps {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isTyping }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // التمرير التلقائي للأسفل
+  const scrollToBottom = () => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages, isTyping]);
 
   return (
-    <div className="absolute inset-0 overflow-y-auto p-4 space-y-4 bg-slate-50/50 scroll-smooth overscroll-contain">
+    <div 
+      ref={containerRef}
+      className="absolute inset-0 overflow-y-auto px-4 pb-12 pt-4 space-y-6 scroll-smooth scrollbar-hide flex flex-col"
+    >
       {messages.length === 0 && (
-        <div className="flex flex-col items-center justify-center min-h-full text-gray-400 space-y-4 py-10">
-          <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center animate-pulse">
-             <span className="text-4xl">👨‍🏫</span>
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 space-y-8 py-20 animate-fade">
+          <div className="w-28 h-28 bg-white rounded-[3rem] shadow-xl flex items-center justify-center border-2 border-indigo-50">
+             <span className="text-6xl">👨‍🏫</span>
           </div>
-          <div className="text-center px-6">
-            <p className="text-lg font-bold text-indigo-900">أهلاً بك مع الاستاذ سورا!</p>
-            <p className="text-[11px] text-gray-500 mt-1">أنا هنا لمساعدتك في المنهج اليمني. اكتب سؤالك أو أرسل صورة للواجب.</p>
+          <div className="text-center px-8">
+            <h3 className="text-xl font-black text-indigo-950 mb-2 tracking-tighter">مرحباً بك في فصلك الذكي!</h3>
+            <p className="text-xs font-bold text-slate-400 leading-relaxed">أنا الأستاذ سورا، رفيقك في المنهج اليمني. اسألني عن أي درس أو أرسل صورة لواجبك وسأقوم بمساعدتك فوراً.</p>
           </div>
         </div>
       )}
@@ -34,42 +41,45 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isTyping }) => {
       {messages.map((msg) => (
         <div 
           key={msg.id} 
-          className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+          className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'} animate-fade`}
         >
           <div 
-            className={`max-w-[92%] md:max-w-[85%] rounded-2xl p-4 shadow-sm relative ${
+            className={`max-w-[88%] rounded-[2.5rem] p-5 shadow-sm border-2 transition-all ${
               msg.role === 'user' 
-                ? 'bg-indigo-600 text-white rounded-br-none' 
-                : 'bg-white text-gray-800 border border-indigo-100 rounded-bl-none'
+                ? 'bg-indigo-600 text-white border-indigo-500 rounded-br-none' 
+                : 'bg-white text-slate-800 border-white rounded-bl-none shadow-indigo-100/20'
             }`}
           >
             {msg.image && (
-              <div className="mb-2 rounded-lg overflow-hidden border border-black/5">
-                <img src={msg.image} alt="Uploaded" className="max-h-64 w-full object-contain bg-black/5" />
+              <div className="mb-4 rounded-[1.8rem] overflow-hidden border-4 border-white shadow-md bg-slate-100 select-none pointer-events-none cursor-default">
+                <img 
+                  src={msg.image} 
+                  alt="Lesson" 
+                  className="w-full h-auto max-h-[350px] object-contain pointer-events-none" 
+                  onLoad={scrollToBottom}
+                />
               </div>
             )}
-            <div className="whitespace-pre-wrap leading-relaxed text-[13px] md:text-[15px] font-medium">
+            <div className="whitespace-pre-wrap leading-relaxed text-sm font-bold tracking-tight">
               {msg.text}
             </div>
             
             {msg.sources && msg.sources.length > 0 && (
-              <div className="mt-3 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+              <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
                 {msg.sources.map((chunk, idx) => chunk.web && (
                   <a 
                     key={idx}
                     href={chunk.web.uri}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[9px] bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1"
+                    className="text-[9px] bg-slate-50 text-indigo-600 px-3 py-1.5 rounded-full font-black border border-indigo-50"
                   >
-                    <span>🔗</span>
-                    <span className="truncate max-w-[100px]">{chunk.web.title || "مرجع"}</span>
+                    🔗 مرجع رسمي
                   </a>
                 ))}
               </div>
             )}
-
-            <div className={`text-[8px] mt-2 font-bold opacity-40 ${msg.role === 'user' ? 'text-left' : 'text-right'}`}>
+            <div className={`text-[8px] mt-2 font-black opacity-30 ${msg.role === 'user' ? 'text-left' : 'text-right'}`}>
               {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
@@ -77,18 +87,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isTyping }) => {
       ))}
 
       {isTyping && (
-        <div className="flex justify-end">
-          <div className="bg-white border border-indigo-50 rounded-2xl p-3 rounded-bl-none shadow-sm flex items-center gap-2">
-            <div className="flex gap-1">
-              <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce"></div>
-              <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-              <div className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+        <div className="flex justify-end animate-fade">
+          <div className="bg-white border-2 border-indigo-50 p-4 rounded-[1.8rem] rounded-bl-none shadow-lg flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
             </div>
-            <span className="text-[10px] text-indigo-600 font-black">جاري التفكير...</span>
+            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">سورا يكتب...</span>
           </div>
         </div>
       )}
-      <div ref={bottomRef} className="h-6 w-full shrink-0" />
+      <div ref={bottomRef} className="h-10 w-full shrink-0" />
     </div>
   );
 };
