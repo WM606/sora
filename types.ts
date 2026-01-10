@@ -16,7 +16,13 @@ export enum GradeLevel {
   SECONDARY_3_LIT = 'ثالث ثانوي - أدبي'
 }
 
-export type Subject = 'رياضيات' | 'علوم' | 'لغة عربية' | 'لغة إنجليزية' | 'دراسات اجتماعية' | 'فيزياء' | 'كيمياء' | 'أحياء' | 'تربية إسلامية' | 'قرآن كريم' | 'أخرى';
+export type Subject = 
+  | 'قرآن كريم' | 'تربية إسلامية' | 'علوم' | 'لغة عربية' | 'دراسات اجتماعية' | 'رياضيات'
+  | 'جغرافيا' | 'تاريخ' | 'تربية وطنية' | 'لغة إنجليزية'
+  | 'إيمان' | 'فقه وحديث' | 'سيرة' | 'قراءة' | 'نحو وصرف' | 'بلاغة' | 'مجتمع' | 'أحياء' | 'فيزياء' | 'كيمياء'
+  | 'نصوص وبلاغة' | 'فلسفة ومنطق' | 'علم اجتماع' | 'أخرى';
+
+export type SessionMode = 'learn' | 'test';
 
 export interface GroundingChunk {
   web?: {
@@ -39,5 +45,6 @@ export interface ChatSession {
   title: string;
   subject: Subject;
   grade: GradeLevel;
+  mode: SessionMode;
   lastUpdate: number;
 }

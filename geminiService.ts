@@ -1,70 +1,81 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { GradeLevel, Subject, GroundingChunk } from "./types";
 
-// استخدم import.meta.env للوصول لمتغيرات البيئة في Vite
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+import { GoogleGenAI } from "@google/genai";
+import { GradeLevel, Subject, GroundingChunk, SessionMode, ChatMessage } from "./types";
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getAIResponse = async (
-  prompt: string, 
+  history: ChatMessage[],
   grade: GradeLevel, 
   subject: Subject,
-  base64Image?: string,
+  mode: SessionMode = 'learn',
   useSearch: boolean = false
 ): Promise<{ text: string, sources?: GroundingChunk[] }> => {
+  
+  const model = "gemini-3-pro-preview";
+  
+  // تحويل تاريخ الرسائل لصيغة يفهمها Gemini
+  const contents = history.map(msg => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: [
+      ...(msg.image ? [{ inlineData: { mimeType: "image/jpeg", data: msg.image.split(',')[1] } }] : []),
+      { text: msg.text }
+    ]
+  }));
 
-  const model = "gemini-3-flash-preview";
+  const curriculumFocus = `
+    أنت "الأستاذ سورا"، خبير المنهج اليمني.
+    المرحلة: ${grade}
+    المادة: ${subject}
+    
+    يجب أن تلتزم كلياً بمواضيع كتاب الوزارة اليمني لهذا الصف.
+  `;
+
+  let modeInstruction = "";
+  if (mode === 'test') {
+    modeInstruction = `
+      أنت الآن في "وضع الاختبار":
+      1. انظر لآخر سؤال طرحته (إذا وجد في التاريخ).
+      2. إذا كانت رسالة الطالب الأخيرة هي "إجابة" على سؤالك:
+         - قيم الإجابة فوراً (صح ✅ أو خطأ ❌).
+         - اشرح لماذا هي صحيحة أو خاطئة بناءً على المنهج اليمني.
+         - ثم اطرح السؤال التالي.
+      3. إذا لم يكن هناك سؤال سابق، ابدأ بطرح السؤال الأول في موضوع محدد من منهج ${subject} لصف ${grade}.
+      4. لا تطرح أكثر من سؤال واحد في المرة الواحدة.
+    `;
+  } else {
+    modeInstruction = `
+      أنت في "وضع الشرح":
+      - اشرح المفاهيم بتبسيط.
+      - ساعد في حل المسائل والواجبات.
+      - اربط المعلومات بالحياة اليومية في اليمن.
+    `;
+  }
 
   const systemInstruction = `
-    أنت معلم خصوصي يمني ذكي وخبير جداً. اسمك "الاستاذ سورا".
-    مهمتك الأساسية هي مساعدة الطالب في فهم الدروس وحل المشكلات التعليمية بناءً على **المنهج الدراسي اليمني** حصراً.
-    المستوى الدراسي للطالب: ${grade}.
-    المادة: ${subject}.
-
-    القواعد الصارمة:
-    1. التزم تماماً بمفاهيم ومصطلحات المنهج اليمني.
-    2. إذا كان الطالب في المرحلة الابتدائية، استخدم لغة بسيطة جداً، مشجعة، واستخدم الرموز التعبيرية (Emojis).
-    3. إذا كان الطالب في المرحلة الثانوية، كن أكثر تفصيلاً ودقة علمية ووضح كيفية الورود في الاختبارات الوزارية اليمنية إن أمكن.
-    4. اشرح الحل خطوة بخطوة، لا تعطه الإجابة النهائية مباشرة.
-    5. إذا أرسل صورة، قم بتحليلها بدقة واشرح ما فيها.
-    6. استخدم لغة عربية فصيحة وبسيطة بلمسة ودودة تناسب الطالب اليمني.
-    7. عند تفعيل البحث، اعتمد على المصادر الموثوقة التي تتحدث عن التعليم في اليمن.
+    ${curriculumFocus}
+    ${modeInstruction}
+    - لهجتك ودودة ومشجعة.
+    - إذا سألك الطالب عن شيء من خارج منهج ${grade}، اعتذر بلطف وركز على مقرره.
   `;
 
   try {
-    const parts: any[] = [{ text: prompt }];
-    
-    if (base64Image) {
-      parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: base64Image.split(',')[1] || base64Image
-        }
-      });
-    }
-
-    const config: any = {
-      systemInstruction,
-      temperature: 0.7,
-      topP: 0.95,
-    };
-
-    if (useSearch) {
-      config.tools = [{ googleSearch: {} }];
-    }
-
     const response = await ai.models.generateContent({
-      model,
-      contents: { parts },
-      config,
+      model: model,
+      contents: contents,
+      config: {
+        systemInstruction,
+        temperature: 0.4,
+        thinkingConfig: { thinkingBudget: 4000 }
+      },
     });
 
-    const text = response.text || "عذراً، لم أستطع توليد استجابة حالياً.";
-    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-
-    return { text, sources };
-
+    return { 
+      text: response.text || "عذراً، حدث خطأ في معالجة الإجابة.",
+      sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks 
+    };
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw new Error("حدث خطأ في الاتصال بالاستاذ سورا. حاول مرة أخرى.");
+    console.error("Gemini Error:", error);
+    throw error;
   }
 };
