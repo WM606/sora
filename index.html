@@ -3,17 +3,24 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>الأستاذ سورا - المنهج اليمني</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --app-height: 100%;
+        }
         body {
             font-family: 'Tajawal', sans-serif;
             background-color: #f1f5f9;
             margin: 0;
             padding: 0;
+            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
             overflow: hidden;
+            position: fixed;
             -webkit-tap-highlight-color: transparent;
         }
         .glass-card {
@@ -28,6 +35,7 @@
                 radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
                 radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
                 radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            background-attachment: fixed;
         }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -49,7 +57,7 @@
 }
 </script>
 </head>
-<body class="gradient-mesh min-h-screen">
+<body class="gradient-mesh">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>
