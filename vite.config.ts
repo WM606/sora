@@ -5,11 +5,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // تمرير مفتاح الـ API بشكل آمن
+    // نستخدم fallback لضمان عدم تمرير undefined كقيمة نصية
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   server: {
-    host: true, // مهم جداً للتشغيل في Termux والوصول من متصفح الهاتف
+    host: true, 
     port: 5173,
     strictPort: true,
   },

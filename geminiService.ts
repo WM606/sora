@@ -1,20 +1,23 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { GradeLevel, Subject, GroundingChunk, SessionMode, ChatMessage } from "./types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getAIResponse = async (
   history: ChatMessage[],
   grade: GradeLevel, 
   subject: Subject,
-  mode: SessionMode = 'learn',
-  useSearch: boolean = false
+  mode: SessionMode = 'learn'
 ): Promise<{ text: string, sources?: GroundingChunk[] }> => {
   
-  const model = "gemini-3-pro-preview";
+  const apiKey = process.env.API_KEY;
   
-  // تحويل تاريخ الرسائل لصيغة يفهمها Gemini
+  if (!apiKey || apiKey.trim() === "") {
+    console.error("API_KEY is missing");
+    return { text: "⚠️ خطأ: مفتاح الـ API غير موجود.\n\n- إذا كنت تستخدم Vercel: أضف API_KEY في Environment Variables.\n- إذا كنت تستخدم Termux: نفذ الأمر export API_KEY=مفتاحك قبل التشغيل." };
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const modelName = "gemini-2.5-flash-lite-latest";
+  
   const contents = history.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'model',
     parts: [
@@ -23,59 +26,43 @@ export const getAIResponse = async (
     ]
   }));
 
-  const curriculumFocus = `
-    أنت "الأستاذ سورا"، خبير المنهج اليمني.
-    المرحلة: ${grade}
-    المادة: ${subject}
-    
-    يجب أن تلتزم كلياً بمواضيع كتاب الوزارة اليمني لهذا الصف.
-  `;
-
-  let modeInstruction = "";
-  if (mode === 'test') {
-    modeInstruction = `
-      أنت الآن في "وضع الاختبار":
-      1. انظر لآخر سؤال طرحته (إذا وجد في التاريخ).
-      2. إذا كانت رسالة الطالب الأخيرة هي "إجابة" على سؤالك:
-         - قيم الإجابة فوراً (صح ✅ أو خطأ ❌).
-         - اشرح لماذا هي صحيحة أو خاطئة بناءً على المنهج اليمني.
-         - ثم اطرح السؤال التالي.
-      3. إذا لم يكن هناك سؤال سابق، ابدأ بطرح السؤال الأول في موضوع محدد من منهج ${subject} لصف ${grade}.
-      4. لا تطرح أكثر من سؤال واحد في المرة الواحدة.
-    `;
-  } else {
-    modeInstruction = `
-      أنت في "وضع الشرح":
-      - اشرح المفاهيم بتبسيط.
-      - ساعد في حل المسائل والواجبات.
-      - اربط المعلومات بالحياة اليومية في اليمن.
-    `;
-  }
-
   const systemInstruction = `
-    ${curriculumFocus}
-    ${modeInstruction}
-    - لهجتك ودودة ومشجعة.
-    - إذا سألك الطالب عن شيء من خارج منهج ${grade}، اعتذر بلطف وركز على مقرره.
+    أنت "الأستاذ سورا"، خبير المناهج اليمنية.
+    المرحلة: ${grade} | المادة: ${subject}
+    أنت الآن في وضع: ${mode === 'learn' ? 'الشرح التعليمي' : 'الاختبار التقييمي'}
+    
+    التعليمات:
+    1. التزم بمنهج وزارة التربية والتعليم في اليمن.
+    2. كن مشجعاً وودوداً جداً مع الطالب.
+    3. استخدم الرموز التعبيرية (Emoji) بكثرة.
+    4. في وضع الاختبار، اطرح سؤالاً واحداً فقط في كل مرة.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: contents,
       config: {
         systemInstruction,
-        temperature: 0.4,
-        thinkingConfig: { thinkingBudget: 4000 }
+        temperature: 0.7,
       },
     });
 
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+
     return { 
-      text: response.text || "عذراً، حدث خطأ في معالجة الإجابة.",
+      text: text,
       sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
-    throw error;
+    let errorMessage = "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي.";
+    const errStr = error.toString();
+    
+    if (errStr.includes("403")) errorMessage = "⚠️ خطأ 403: مفتاح الـ API غير صالح أو منطقتك الجغرافية محظورة (جرب VPN).";
+    if (errStr.includes("429")) errorMessage = "⚠️ ضغط كبير على الخدمة، انتظر دقيقة وحاول مجدداً.";
+    
+    return { text: errorMessage };
   }
 };
